@@ -7,6 +7,7 @@ module System.Posix.SharedBuffer (
   openSBuffer
 , closeSharedBuffer
 , removeSharedBuffer
+, unlinkSharedBuffer
 -- * private stuff (exported for wizards)
 , SharedBuffer (..)
 -- ** generalized buffer access
@@ -59,6 +60,16 @@ closeSharedBuffer SharedBuffer{sbPtr,sbLen} = do
 removeSharedBuffer :: SharedBuffer -> IO ()
 removeSharedBuffer sb@SharedBuffer{sbName} = do
     closeSharedBuffer sb
+    void (try (shmUnlink sbName) :: IO (Either IOError ()))
+
+-- | Unlink a shared buffer (shm_unlink) without closing the reference to it.
+-- Any processes that have already opened the buffer (including this one)
+-- should be able to continue accessing it.
+--
+-- After 'unlinkSharedBuffer', references should be closed with
+-- closeSharedBuffer.
+unlinkSharedBuffer :: SharedBuffer -> IO ()
+unlinkSharedBuffer SharedBuffer{sbName} = do
     void (try (shmUnlink sbName) :: IO (Either IOError ()))
 
 ------------------------------------------------------------------

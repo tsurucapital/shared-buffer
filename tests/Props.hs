@@ -25,6 +25,7 @@ withReaderWriter :: Storable a => Int -> (ReadBuffer a -> WriteBuffer a -> IO b)
 withReaderWriter sz fn = do
     wb <- createBuffer "/abuf" "/abuf" sz 0o600
     rb <- openBuffer   "/abuf" "/abuf" sz 0o400
+    unlinkBuffer wb
     fn rb wb `finally` ( closeBuffer rb >> removeBuffer wb )
 
 propAtInt :: ([Int] -> IO Bool) -> [Int] -> Property

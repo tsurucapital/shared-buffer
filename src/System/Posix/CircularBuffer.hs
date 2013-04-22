@@ -69,8 +69,9 @@ data ReadBuffer a  = RB CircularBuffer (ForeignPtr Int)
 class Shared b where
     createBuffer :: String -> String -> Int -> FileMode -> IO b
     openBuffer   :: String -> String -> Int -> FileMode -> IO b
-    closeBuffer :: b -> IO ()
+    closeBuffer  :: b -> IO ()
     removeBuffer :: b -> IO ()
+    unlinkBuffer :: b -> IO ()
 
 instance Storable a => Shared (WriteBuffer a) where
     createBuffer = openSharedBuffer makeWB
@@ -93,6 +94,7 @@ instance Storable a => Shared (WriteBuffer a) where
                                   (sizeOf (undefined :: a))
     closeBuffer (WB cb _)  = closeBuffer cb
     removeBuffer (WB cb _) = removeBuffer cb
+    unlinkBuffer (WB cb _) = unlinkBuffer cb
 
 instance Storable a => Shared (ReadBuffer a) where
     createBuffer = openSharedBuffer makeRB
@@ -115,6 +117,7 @@ instance Storable a => Shared (ReadBuffer a) where
                                     (sizeOf (undefined :: a))
     closeBuffer (RB cb _)  = closeBuffer cb
     removeBuffer (RB cb _) = removeBuffer cb
+    unlinkBuffer (RB cb _) = unlinkBuffer cb
 
 makeRB :: CircularBuffer -> MVar Int -> ForeignPtr Int -> ReadBuffer a
 makeRB buf _ fp = RB buf fp
@@ -210,6 +213,8 @@ instance Shared CircularBuffer where
     removeBuffer cb = do
         removeSharedBuffer (cbBuf cb)
         void (try (semUnlink (cbSemName cb)) :: IO (Either IOError ()))
+    unlinkBuffer cb =
+        void (try $ unlinkSharedBuffer (cbBuf cb) >> semUnlink (cbSemName cb) :: IO (Either IOError ()))
 
 -- Wait until data is available, then read the value at a particular sequence number.
 --
