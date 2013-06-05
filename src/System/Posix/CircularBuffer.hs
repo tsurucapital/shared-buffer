@@ -50,6 +50,7 @@ import System.Posix.SharedBuffer
 import Control.Concurrent.MVar
 import Control.Exception (try)
 import Control.Monad
+import Data.Bits
 import Foreign.ForeignPtr
 import Foreign.Ptr
 import Foreign.Marshal.Array (advancePtr)
@@ -138,7 +139,7 @@ openSharedBuffer :: (CircularBuffer -> MVar Int -> ForeignPtr Int -> b)
                  -> IO b
 openSharedBuffer maker semFlags shmFlags prot bitwidth shmName cbSemName reqCbSize mode = do
     let bufsz = fromIntegral $ bitwidth*cbSize
-        cbSize = 1+reqCbSize
+        cbSize = 2^(ceiling (logBase 2 (fromIntegral $ 1+reqCbSize) :: Double) :: Int)
         -- the buffer is effectively 1 element smaller than specified
         -- (due to a race condition in the reader, see 'readSeqBlocking')
         -- so make it 1 larger so that the full requested size is always
@@ -299,7 +300,7 @@ writeSeqList cb@CircularBuffer{..} writePos = go 0
 readSeq :: Storable a => CircularBuffer -> Int -> IO a
 readSeq CircularBuffer{..} rseq = do
     let cbPtr  = castPtr $ sbPtr $ cbBuf
-        offset = rseq `rem` cbSize
+        offset = rseq .&. (cbSize-1)
     peek (cbPtr `advancePtr` offset)
 -- ghc inlines these already
 
@@ -312,11 +313,11 @@ readSeqs CircularBuffer{..} rseq count
   where
     cbPtr = castPtr $ sbPtr cbBuf
     go 0 acc = do
-        let offset = rseq `rem` cbSize
+        let offset = rseq .&. (cbSize-1)
         x <- peek (cbPtr `advancePtr` offset)
         return (x:acc)
     go n acc = do
-        let offset = (n+rseq) `rem` cbSize
+        let offset = (n+rseq) .&. (cbSize-1)
         x <- peek (cbPtr `advancePtr` offset)
         go (n-1) (x:acc)
 {-# INLINE readSeqs #-}
@@ -325,7 +326,7 @@ readSeqs CircularBuffer{..} rseq count
 writeSeq :: Storable a => CircularBuffer -> Int -> a -> IO ()
 writeSeq CircularBuffer{..} wseq val = do
     let cbPtr  = castPtr $ sbPtr $ cbBuf
-        offset = wseq `rem` cbSize
+        offset = wseq .&. (cbSize-1)
     poke (cbPtr `advancePtr` offset) val
 
 -- Does the same as `semWait`, but cheaper if the semaphore
