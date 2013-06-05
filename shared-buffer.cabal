@@ -32,7 +32,7 @@ library
   build-tools:         hsc2hs
 
 Test-suite shared-buffer-tests
-  Ghc-options:    -Wall -threaded
+  Ghc-options:    -Wall -threaded -fhpc -hpcdir dist/hpc/mix/shared-buffer-0.1.0.2
   Hs-source-dirs: src tests
   Main-is:        TestSuite.hs
   Type:           exitcode-stdio-1.0
