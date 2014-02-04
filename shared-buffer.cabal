@@ -53,3 +53,6 @@ Test-suite shared-buffer-tests
   hs-source-dirs:      src
   build-tools:         hsc2hs
 
+source-repository head
+  type:                git
+  location:            git://github.com/JohnLato/shared-buffer.git
