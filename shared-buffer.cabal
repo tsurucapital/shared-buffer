@@ -4,7 +4,7 @@
 name:                shared-buffer
 version:             0.1.0.4
 synopsis:            A circular buffer built on shared memory
--- description:         
+description:         A circular buffer built on shared memory
 license:             BSD3
 license-file:        LICENSE
 author:              John W. Lato
