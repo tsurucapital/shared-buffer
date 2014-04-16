@@ -6,31 +6,31 @@
 
 {-# OPTIONS_GHC -Wall #-}
 {- | Create a circular buffer over shared memory that can be accessed from
- - separate processes.
- -
- - This module assumes that exactly one WriteBuffer and one ReadBuffer will be
- - used to access the same shared memory object.  The ReadBuffer and
- - WriteBuffer may exist in separate processes.
- -
- - to use this library, in one process
- -
- - > bracket (createBuffer "aBuffer" "aSemaphore" 256 0o600) (removeBuffer)
- - >         (\buffer -> doSomethingWith buffer)
- -
- - and in the other
- -
- - > bracket (openBuffer "aBuffer" "aSemaphore" 256 0o600) (closeBuffer)
- - >         (\buffer -> doSomethingWith buffer)
- -
- - The buffer may be opened from either the reader or writer end, but you
- - should ensure that the buffer is created before it is opened.
- -
- - As the underlying objects (shm and named posix semaphores) exist in the file
- - system, failing to call removeBuffer will leave stale objects in the
- - filesystem.
- -
- - Opening multiple ReadBuffers or WriteBuffers with the same names (whether in
- - one process or several) results in undefined behavior.
+   separate processes.
+
+   This module assumes that exactly one WriteBuffer and one ReadBuffer will be
+   used to access the same shared memory object.  The ReadBuffer and
+   WriteBuffer may exist in separate processes.
+
+   to use this library, in one process
+
+   > bracket (createBuffer "aBuffer" "aSemaphore" 256 0o600) (removeBuffer)
+   >         (\buffer -> doSomethingWith buffer)
+
+   and in the other
+
+   > bracket (openBuffer "aBuffer" "aSemaphore" 256 0o600) (closeBuffer)
+   >         (\buffer -> doSomethingWith buffer)
+
+   The buffer may be opened from either the reader or writer end, but you
+   should ensure that the buffer is created before it is opened.
+
+   As the underlying objects (shm and named posix semaphores) exist in the file
+   system, failing to call removeBuffer will leave stale objects in the
+   filesystem.
+
+   Opening multiple ReadBuffers or WriteBuffers with the same names (whether in
+   one process or several) results in undefined behavior.
  -}
 module System.Posix.CircularBuffer (
   WriteBuffer
