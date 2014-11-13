@@ -36,6 +36,7 @@ module System.Posix.CircularBuffer (
   WriteBuffer
 , ReadBuffer
 , Shared (..)
+, WaitStrategy (..)
 -- * normal interface
 , putBuffer
 , getBuffer
@@ -59,6 +60,7 @@ import System.Posix.Semaphore.Unsafe
 import System.Posix (FileMode)
 
 import Debug.Trace (traceEventIO)
+import Control.Concurrent (threadDelay,yield)
 
 -- we could use Ptr's instead of ForeignPtr's, but then we'd need to free them
 -- in the case of an exception, which would require exporting more from this
@@ -169,13 +171,17 @@ putBufferList (WB cb seqvar) vals = modifyMVar_ seqvar $ \seqnum -> do
     return $! seqnum+cnt
 {-# INLINE putBufferList #-}
 
+data WaitStrategy =
+    KBlocking
+  | Spin {-# UNPACK #-} !Int {-# UNPACK #-} !Int {-# UNPACK #-} !Int
+  | SpinContinuous {-# UNPACK #-} !Int
 -- | read the next value from the reader end.
 --
 -- This function is *NOT* thread-safe.
-getBuffer :: Storable a => ReadBuffer a -> IO a
-getBuffer (RB cb seqvar) = withForeignPtr seqvar $ \seqPtr -> do
+getBuffer :: Storable a => WaitStrategy -> ReadBuffer a -> IO a
+getBuffer ws (RB cb seqvar) = withForeignPtr seqvar $ \seqPtr -> do
     seqnum <- peek seqPtr
-    val <- readSeqBlocking cb seqnum
+    val <- readSeqBlocking ws cb seqnum
     poke seqPtr $ seqnum+1
     return val
 {-# INLINEABLE getBuffer #-}
@@ -228,9 +234,15 @@ instance Shared CircularBuffer where
 -- value.  The writer side must take care to not overwrite the end of the
 -- buffer, as it will see the semaphore decrement before the value is actually
 -- read.
-readSeqBlocking :: Storable a => CircularBuffer -> Int -> IO a
-readSeqBlocking cb = \rseq -> do
+readSeqBlocking :: Storable a => WaitStrategy -> CircularBuffer -> Int -> IO a
+readSeqBlocking KBlocking cb = \rseq -> do
     waitAndLock (cbSem cb)
+    readSeq cb rseq
+readSeqBlocking (SpinContinuous n) cb = \rseq -> do
+    waitSpin n (cbSem cb)
+    readSeq cb rseq
+readSeqBlocking (Spin spinStay spinStart spinStop) cb = \rseq -> do
+    waitBackoff spinStart spinStay spinStop (cbSem cb)
     readSeq cb rseq
 {-# INLINEABLE readSeqBlocking #-}
 
@@ -335,8 +347,35 @@ waitAndLock :: Semaphore -> IO ()
 waitAndLock sem = do
     gotLock <- unsafeSemTryWait sem
     when (not gotLock) $ do
-        gotLock' <- semTimedWait 10 0 sem
+        gotLock' <- semTimedWait 0 80000 sem
         when (not gotLock') $ waitAndLock sem
+
+waitSpin :: Int -> Semaphore -> IO ()
+waitSpin n sem = go 20
+  where
+    go 0 = yield >> go 20
+    go k = do
+      gotLock <- unsafeSemTryWait sem
+      when (not gotLock) $ do
+        replicateM_ n $ return ()
+        go (k-1)
+
+waitBackoff :: Int -> Int -> Int -> Semaphore -> IO ()
+waitBackoff k0 stay k1 sem = go 0 0
+  where
+    go _ 0 = do
+        gotLock <- unsafeSemTryWait sem
+        when (not gotLock) $ go stay k0
+    go 0 n = go stay (n*2)
+    go l n
+      | n < k1 = do
+        mapM_ (\_ -> return ()) [0..n]
+        gotLock <- unsafeSemTryWait sem
+        when (not gotLock) $ go (l-1) n
+      | otherwise = do
+          threadDelay 500
+          gotLock <- unsafeSemTryWait sem
+          when (not gotLock) $ go 1 n
 
 ------------------------------------------------------------------
 -- size of an int, as a compile-time constant.
