@@ -371,7 +371,7 @@ waitAndLock sem = do
         when (not gotLock') $ waitAndLock sem
 
 waitSpin :: Int -> Semaphore -> IO ()
-waitSpin n sem = go 20
+waitSpin n sem = go (20 :: Int)
   where
     go 0 = yield >> go 20
     go k = do
