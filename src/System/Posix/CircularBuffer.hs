@@ -50,7 +50,7 @@ module System.Posix.CircularBuffer (
 import System.Posix.SharedBuffer
 
 import Control.Concurrent.MVar
-import Control.Exception (try)
+import Control.Exception (try, finally)
 import Control.Monad
 import Data.Bits
 import Data.Maybe (isJust)
@@ -231,11 +231,11 @@ instance Shared CircularBuffer where
     createBuffer = error "can't create a CircularBuffer directly"
     openBuffer = error "can't open a CircularBuffer directly"
     closeBuffer = closeSharedBuffer . cbBuf
-    removeBuffer cb = do
-        removeSharedBuffer (cbBuf cb)
-        void (try (semUnlink (cbSemName cb)) :: IO (Either IOError ()))
+    removeBuffer cb =
+        removeSharedBuffer (cbBuf cb) `finally`
+            void (try (semUnlink (cbSemName cb)) :: IO (Either IOError ()))
     unlinkBuffer cb =
-        void (try $ unlinkSharedBuffer (cbBuf cb) >> semUnlink (cbSemName cb) :: IO (Either IOError ()))
+        void (try $ unlinkSharedBuffer (cbBuf cb) `finally` semUnlink (cbSemName cb) :: IO (Either IOError ()))
 
 -- Wait until data is available, then read the value at a particular sequence number.
 --

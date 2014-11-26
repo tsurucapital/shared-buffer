@@ -21,7 +21,7 @@ module System.Posix.SharedBuffer (
 , openReadFlags
 ) where
 
-import Control.Exception (try)
+import Control.Exception (try, finally)
 import Control.Monad
 import Data.Bits
 import Data.List (foldl')
@@ -58,9 +58,9 @@ closeSharedBuffer SharedBuffer{sbPtr,sbLen} = do
 -- | Close a reference to a shared memory object and removes it.
 -- Calls 'munmap' followed by 'shm_unlink'
 removeSharedBuffer :: SharedBuffer -> IO ()
-removeSharedBuffer sb@SharedBuffer{sbName} = do
-    closeSharedBuffer sb
-    void (try (shmUnlink sbName) :: IO (Either IOError ()))
+removeSharedBuffer sb@SharedBuffer{sbName} =
+    closeSharedBuffer sb `finally`
+        (void (try (shmUnlink sbName) :: IO (Either IOError ())))
 
 -- | Unlink a shared buffer (shm_unlink) without closing the reference to it.
 -- Any processes that have already opened the buffer (including this one)
