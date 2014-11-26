@@ -40,6 +40,7 @@ module System.Posix.CircularBuffer (
 -- * normal interface
 , putBuffer
 , getBuffer
+, tryGetBuffer
 -- ** batch operations
 , putBufferList
 , getAvailable
@@ -52,6 +53,7 @@ import Control.Concurrent.MVar
 import Control.Exception (try)
 import Control.Monad
 import Data.Bits
+import Data.Maybe (isJust)
 import Foreign.ForeignPtr
 import Foreign.Ptr
 import Foreign.Marshal.Array (advancePtr)
@@ -187,6 +189,17 @@ getBuffer ws (RB cb seqvar) = withForeignPtr seqvar $ \seqPtr -> do
     return val
 {-# INLINEABLE getBuffer #-}
 
+-- | Try to read the next value from the reader end.
+--
+-- This function is *NOT* thread-safe.
+tryGetBuffer :: Storable a => ReadBuffer a -> IO (Maybe a)
+tryGetBuffer (RB cb seqvar) = withForeignPtr seqvar $ \seqPtr -> do
+    seqnum <- peek seqPtr
+    val <- tryReadSeq cb seqnum
+    when (isJust val) $ poke seqPtr $ seqnum+1
+    return val
+{-# INLINEABLE tryGetBuffer #-}
+
 -- | read all currently available values from the reader end.
 --
 -- This function is *NOT* thread-safe.
@@ -246,6 +259,12 @@ readSeqBlocking (Spin spinStay spinStart spinStop) cb = \rseq -> do
     waitBackoff spinStart spinStay spinStop (cbSem cb)
     readSeq cb rseq
 {-# INLINEABLE readSeqBlocking #-}
+
+tryReadSeq :: Storable a => CircularBuffer -> Int -> IO (Maybe a)
+tryReadSeq cb rseq = do
+    gotLock <- unsafeSemTryWait $ cbSem cb
+    if gotLock then Just `fmap` readSeq cb rseq else return Nothing
+{-# INLINEABLE tryReadSeq #-}
 
 -- read currently available data starting from the given sequence number.
 readSeqReady :: Storable a => CircularBuffer -> Int -> IO [a]
