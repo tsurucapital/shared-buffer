@@ -2,7 +2,7 @@
 -- documentation, see http://haskell.org/cabal/users-guide/
 
 name:                shared-buffer
-version:             0.1.0.8
+version:             0.2.1
 synopsis:            A circular buffer built on shared memory
 description:         A circular buffer built on shared memory
 license:             BSD3
