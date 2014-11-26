@@ -175,6 +175,7 @@ data WaitStrategy =
     KBlocking
   | Spin {-# UNPACK #-} !Int {-# UNPACK #-} !Int {-# UNPACK #-} !Int
   | SpinContinuous {-# UNPACK #-} !Int
+
 -- | read the next value from the reader end.
 --
 -- This function is *NOT* thread-safe.
@@ -347,7 +348,7 @@ waitAndLock :: Semaphore -> IO ()
 waitAndLock sem = do
     gotLock <- unsafeSemTryWait sem
     when (not gotLock) $ do
-        gotLock' <- semTimedWait 0 80000 sem
+        gotLock' <- semTimedWait 10 0 sem
         when (not gotLock') $ waitAndLock sem
 
 waitSpin :: Int -> Semaphore -> IO ()
