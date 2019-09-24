@@ -2,7 +2,7 @@
 -- documentation, see http://haskell.org/cabal/users-guide/
 
 name:                shared-buffer
-version:             0.2.2
+version:             0.2.3
 synopsis:            A circular buffer built on shared memory
 description:         A circular buffer built on shared memory
 license:             BSD3
@@ -26,8 +26,8 @@ library
                       ,System.Posix.AtomicOps
                       ,System.Posix.Semaphore.Unsafe
   -- other-modules:       
-  build-depends:       base >=4.5     && < 4.13
-                      ,unix >=2.5     && < 2.8
+  build-depends:       base >=4.5     && < 4.14
+                      ,unix >=2.5     && < 2.9
                       ,bytestring
   hs-source-dirs:      src
   build-tools:         hsc2hs
