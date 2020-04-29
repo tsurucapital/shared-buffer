@@ -50,7 +50,7 @@ module System.Posix.CircularBuffer (
 import System.Posix.SharedBuffer
 
 import Control.Concurrent.MVar
-import Control.Exception (try, finally)
+import Control.Exception (try, finally, allowInterrupt)
 import Control.Monad
 import Data.Bits
 import Data.Maybe (isJust)
@@ -367,7 +367,8 @@ waitAndLock :: Semaphore -> IO ()
 waitAndLock sem = do
     gotLock <- unsafeSemTryWait sem
     when (not gotLock) $ do
-        gotLock' <- semTimedWait 10 0 sem
+        gotLock' <- semTimedWait 1 0 sem
+        allowInterrupt
         when (not gotLock') $ waitAndLock sem
 
 waitSpin :: Int -> Semaphore -> IO ()
